@@ -1,0 +1,66 @@
+package ucanp2p
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"strings"
+
+	gostream "github.com/libp2p/go-libp2p-gostream"
+	p2phttp "github.com/libp2p/go-libp2p-http"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/storacha/go-ucanto/transport"
+	uhttp "github.com/storacha/go-ucanto/transport/http"
+)
+
+var NewHTTPRequest = uhttp.NewHTTPRequest
+var NewHTTPResponse = uhttp.NewHTTPResponse
+var NewHTTPError = uhttp.NewHTTPError
+
+type httpchannel struct {
+	client host.Host
+	peer   peer.AddrInfo
+	path   string
+}
+
+func (c *httpchannel) Request(req transport.HTTPRequest) (transport.HTTPResponse, error) {
+	path := c.path
+	if !strings.HasPrefix(path, "/") {
+		path = fmt.Sprintf("/%s", path)
+	}
+
+	hr, err := http.NewRequest("POST", fmt.Sprintf("libp2p://%s%s", c.peer.ID, path), req.Body())
+	if err != nil {
+		return nil, fmt.Errorf("creating HTTP request: %s", err)
+	}
+	hr.Header = req.Headers()
+
+	err = c.client.Connect(context.TODO(), c.peer)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to remote peer: %w", err)
+	}
+	rt := p2phttp.NewTransport(c.client)
+
+	res, err := rt.RoundTrip(hr)
+	if err != nil {
+		return nil, fmt.Errorf("doing HTTP request: %s", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, NewHTTPError(fmt.Sprintf("HTTP Request failed. %s %s → %d", hr.Method, hr.URL, res.StatusCode), res.StatusCode, res.Header)
+	}
+
+	return NewHTTPResponse(res.StatusCode, res.Body, res.Header), nil
+}
+
+// NewHTTPChannel creates a new HTTP over libp2p channel.
+func NewHTTPChannel(client host.Host, peer peer.AddrInfo, path string) transport.Channel {
+	return &httpchannel{client, peer, path}
+}
+
+// NewHTTPListener creates a new [net.Listener] that listens to "/libp2p-http"
+// protocol messages sent to the server host.
+func NewHTTPListener(server host.Host) (net.Listener, error) {
+	return gostream.Listen(server, p2phttp.DefaultP2PProtocol)
+}
