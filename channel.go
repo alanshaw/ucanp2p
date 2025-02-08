@@ -11,6 +11,7 @@ import (
 	p2phttp "github.com/libp2p/go-libp2p-http"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/storacha/go-ucanto/transport"
 	uhttp "github.com/storacha/go-ucanto/transport/http"
 )
@@ -18,6 +19,8 @@ import (
 var NewHTTPRequest = uhttp.NewHTTPRequest
 var NewHTTPResponse = uhttp.NewHTTPResponse
 var NewHTTPError = uhttp.NewHTTPError
+
+const HTTPProtocol = protocol.ID("/libp2p-http/ucanto")
 
 type httpchannel struct {
 	client host.Host
@@ -59,8 +62,8 @@ func NewHTTPChannel(client host.Host, peer peer.AddrInfo, path string) transport
 	return &httpchannel{client, peer, path}
 }
 
-// NewHTTPListener creates a new [net.Listener] that listens to "/libp2p-http"
-// protocol messages sent to the server host.
+// NewHTTPListener creates a new [net.Listener] that listens to
+// "/libp2p-http/ucanto" protocol messages sent to the server host.
 func NewHTTPListener(server host.Host) (net.Listener, error) {
-	return gostream.Listen(server, p2phttp.DefaultP2PProtocol)
+	return gostream.Listen(server, HTTPProtocol)
 }
