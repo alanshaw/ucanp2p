@@ -44,7 +44,7 @@ func (c *httpchannel) Request(ctx context.Context, req transport.HTTPRequest) (t
 	if err != nil {
 		return nil, fmt.Errorf("connecting to remote peer: %w", err)
 	}
-	rt := p2phttp.NewTransport(c.client)
+	rt := p2phttp.NewTransport(c.client, p2phttp.ProtocolOption(HTTPProtocol))
 
 	res, err := rt.RoundTrip(hr)
 	if err != nil {
