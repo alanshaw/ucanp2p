@@ -1,6 +1,7 @@
 package ucanp2p
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,7 +77,7 @@ func TestEcho(t *testing.T) {
 			serverID,
 			userver.WithServiceMethod(
 				echo.Can(),
-				userver.Provide(echo, func(cap ucan.Capability[echoCaveats], inv invocation.Invocation, iCtx userver.InvocationContext) (echoCaveats, fx.Effects, error) {
+				userver.Provide(echo, func(ctx context.Context, cap ucan.Capability[echoCaveats], inv invocation.Invocation, iCtx userver.InvocationContext) (echoCaveats, fx.Effects, error) {
 					fmt.Printf("echoing: %s\n", cap.Nb().Message)
 					return echoCaveats{Message: cap.Nb().Message}, nil, nil
 					// return echoCaveats{}, nil, errors.New("boom")
@@ -85,7 +86,7 @@ func TestEcho(t *testing.T) {
 		))(t)
 		// handle request
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			res, _ := server.Request(NewHTTPRequest(r.Body, r.Header))
+			res, _ := server.Request(r.Context(), NewHTTPRequest(r.Body, r.Header))
 			for key, vals := range res.Headers() {
 				for _, v := range vals {
 					w.Header().Add(key, v)
@@ -119,7 +120,7 @@ func TestEcho(t *testing.T) {
 	inv := testutil.Must(invocation.Invoke(clientID, serverID, cap, delegation.WithProof(proof)))(t)
 
 	// send the invocation to the server
-	resp := testutil.Must(client.Execute([]invocation.Invocation{inv}, conn))(t)
+	resp := testutil.Must(client.Execute(t.Context(), []invocation.Invocation{inv}, conn))(t)
 
 	// create new receipt reader
 	rcptReader := testutil.Must(receipt.NewReceiptReaderFromTypes[echoOk, ipld.Node](echoTS().TypeByName("EchoOk"), echoTS().TypeByName("EchoFailure")))(t)

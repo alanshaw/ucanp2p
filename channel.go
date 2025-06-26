@@ -28,7 +28,7 @@ type httpchannel struct {
 	path   string
 }
 
-func (c *httpchannel) Request(req transport.HTTPRequest) (transport.HTTPResponse, error) {
+func (c *httpchannel) Request(ctx context.Context, req transport.HTTPRequest) (transport.HTTPResponse, error) {
 	path := c.path
 	if !strings.HasPrefix(path, "/") {
 		path = fmt.Sprintf("/%s", path)
@@ -40,7 +40,7 @@ func (c *httpchannel) Request(req transport.HTTPRequest) (transport.HTTPResponse
 	}
 	hr.Header = req.Headers()
 
-	err = c.client.Connect(context.TODO(), c.peer)
+	err = c.client.Connect(ctx, c.peer)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to remote peer: %w", err)
 	}
